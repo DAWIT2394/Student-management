@@ -3,12 +3,32 @@ const Student = require('../models/Student');
 
 exports.getAllStudents = async (req, res) => {
     try {
-        const students = await Student.find();
-        res.json(students);
+        // Default values for page and limit if they are not provided in the query
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        
+        // Calculate the start index
+        const startIndex = (page - 1) * limit;
+        
+        // Get the total count of students
+        const totalStudents = await Student.countDocuments();
+        
+        // Get the students for the current page
+        const students = await Student.find().skip(startIndex).limit(limit);
+        
+        // Prepare the pagination response
+        const pagination = {
+            totalItems: totalStudents,
+            totalPages: Math.ceil(totalStudents / limit),
+            currentPage: page,
+            pageSize: limit
+        };
+
+        res.json({ pagination, students });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
-};
+}; 
 
 
 exports.createStudent = async (req, res) => {
@@ -51,11 +71,11 @@ exports.getStudentById = async (req, res) => {
 };
 
 // Function to get student by name
-exports.getStudentByName = async (req, res) => {
+exports.getStudentsByName = async (req, res) => {
     try {
-        const student = await Student.findOne({ name: req.params.name });
-        if (!student) return res.status(404).json({ message: 'Student not found' });
-        res.json(student);
+        const students = await Student.find({ name: new RegExp(req.params.name, 'i') }).sort({ name: 1 });
+        if (students.length === 0) return res.status(404).json({ message: 'No students found' });
+        res.json(students);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
